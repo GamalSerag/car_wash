@@ -1,0 +1,2 @@
+[functions.notify-sale]
+verify_jwt = false

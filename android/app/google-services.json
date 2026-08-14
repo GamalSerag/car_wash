@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "662409414304",
+    "project_id": "car-wash-sales",
+    "storage_bucket": "car-wash-sales.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:662409414304:android:e231434c275420cfc2ebc5",
+        "android_client_info": {
+          "package_name": "com.example.car_wash"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAxiL_DILHPezNgYGFL7QRgAiRezSPtjh8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

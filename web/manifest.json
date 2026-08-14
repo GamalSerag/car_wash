@@ -1,0 +1,12 @@
+{
+  "name": "مغسلة لمسة",
+  "short_name": "مغسلة لمسة",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#145968",
+  "description": "نظام تسجيل المبيعات",
+  "orientation": "portrait-primary",
+  "prefer_related_applications": false,
+  "icons": []
+}

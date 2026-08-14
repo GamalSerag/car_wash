@@ -1,0 +1,27 @@
+# Flutter/Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local logs / crash dumps
+*.log
+hs_err_pid*.log
+replay_pid*.log
+java_stdout*.txt
+java_stderr*.txt
+
+# Local secret env files
+supabase/.edge-secrets.env
+supabase/.temp/
+*.env
