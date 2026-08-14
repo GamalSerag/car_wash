@@ -28,6 +28,10 @@ class _CarpetOrdersScreenState extends State<CarpetOrdersScreen> {
     );
   }
 
+  double get _paidTotal {
+    return _orders.fold<double>(0, (total, order) => total + order.paidAmount);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -69,6 +73,66 @@ class _CarpetOrdersScreenState extends State<CarpetOrdersScreen> {
 
     if (mounted) {
       await _loadOrders();
+    }
+  }
+
+  Future<void> _openEditOrder(CarpetOrderModel order) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => AddCarpetOrderScreen(order: order),
+      ),
+    );
+
+    if (mounted) {
+      await _loadOrders();
+    }
+  }
+
+  Future<void> _deleteOrder(CarpetOrderModel order) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('تأكيد الحذف'),
+          content: Text(
+            'هل تريد حذف طلب السجاد الخاص بـ ${order.customerName}؟',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('حذف'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) {
+      return;
+    }
+
+    try {
+      await _carpetOrderService.deleteOrder(order.id);
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('تم حذف طلب السجاد')));
+      await _loadOrders();
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('تعذر حذف طلب السجاد')));
     }
   }
 
@@ -138,22 +202,32 @@ class _CarpetOrdersScreenState extends State<CarpetOrdersScreen> {
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                 sliver: SliverToBoxAdapter(
-                  child: Row(
+                  child: Column(
                     children: [
-                      Expanded(
-                        child: SummaryCard(
-                          title: 'عدد الطلبات',
-                          value: _orders.length.toString(),
-                          icon: Icons.inventory_2_outlined,
-                        ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: SummaryCard(
+                              title: 'عدد الطلبات',
+                              value: _orders.length.toString(),
+                              icon: Icons.inventory_2_outlined,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: SummaryCard(
+                              title: 'المتبقي',
+                              value: '${formatPrice(_remainingTotal)} ج.م',
+                              icon: Icons.pending_actions,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: SummaryCard(
-                          title: 'المتبقي',
-                          value: '${formatPrice(_remainingTotal)} ج.م',
-                          icon: Icons.pending_actions,
-                        ),
+                      const SizedBox(height: 12),
+                      SummaryCard(
+                        title: 'إجمالي المدفوع',
+                        value: '${formatPrice(_paidTotal)} ج.م',
+                        icon: Icons.price_check_outlined,
                       ),
                     ],
                   ),
@@ -207,6 +281,12 @@ class _CarpetOrdersScreenState extends State<CarpetOrdersScreen> {
                       return CarpetOrderTile(
                         order: order,
                         showEmployeeName: widget.isAdmin,
+                        onEdit: widget.isAdmin
+                            ? () => _openEditOrder(order)
+                            : null,
+                        onDelete: widget.isAdmin
+                            ? () => _deleteOrder(order)
+                            : null,
                         onMarkDelivered: order.isDelivered
                             ? null
                             : () => _markDelivered(order),
@@ -238,11 +318,15 @@ class CarpetOrderTile extends StatelessWidget {
     required this.order,
     required this.showEmployeeName,
     required this.onMarkDelivered,
+    this.onEdit,
+    this.onDelete,
   });
 
   final CarpetOrderModel order;
   final bool showEmployeeName;
   final VoidCallback? onMarkDelivered;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -355,6 +439,41 @@ class CarpetOrderTile extends StatelessWidget {
                   onPressed: onMarkDelivered,
                   icon: const Icon(Icons.done_all, size: 18),
                   label: const Text('تم الاستلام'),
+                ),
+              if (onEdit != null || onDelete != null)
+                PopupMenuButton<String>(
+                  tooltip: 'خيارات الطلب',
+                  onSelected: (value) {
+                    if (value == 'edit') {
+                      onEdit?.call();
+                    } else if (value == 'delete') {
+                      onDelete?.call();
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    if (onEdit != null)
+                      const PopupMenuItem(
+                        value: 'edit',
+                        child: Row(
+                          children: [
+                            Icon(Icons.edit_outlined),
+                            SizedBox(width: 8),
+                            Text('تعديل'),
+                          ],
+                        ),
+                      ),
+                    if (onDelete != null)
+                      const PopupMenuItem(
+                        value: 'delete',
+                        child: Row(
+                          children: [
+                            Icon(Icons.delete_outline),
+                            SizedBox(width: 8),
+                            Text('حذف'),
+                          ],
+                        ),
+                      ),
+                  ],
                 ),
             ],
           ),

@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../models/carpet_order_model.dart';
 import '../services/auth_service.dart';
 import '../services/carpet_order_service.dart';
 import 'home_screen.dart';
 
 class AddCarpetOrderScreen extends StatefulWidget {
-  const AddCarpetOrderScreen({super.key});
+  const AddCarpetOrderScreen({super.key, this.order});
+
+  final CarpetOrderModel? order;
 
   @override
   State<AddCarpetOrderScreen> createState() => _AddCarpetOrderScreenState();
@@ -28,6 +31,8 @@ class _AddCarpetOrderScreenState extends State<AddCarpetOrderScreen> {
   bool _isSubmitting = false;
   String? _errorMessage;
 
+  bool get _isEditing => widget.order != null;
+
   double get _totalPrice => _parseAmount(_totalPriceController.text);
   double get _paidAmount => _parseAmount(_paidAmountController.text);
   double get _remainingAmount {
@@ -38,8 +43,22 @@ class _AddCarpetOrderScreenState extends State<AddCarpetOrderScreen> {
   @override
   void initState() {
     super.initState();
+    _fillOrderFields();
     _totalPriceController.addListener(_refreshRemainingAmount);
     _paidAmountController.addListener(_refreshRemainingAmount);
+  }
+
+  void _fillOrderFields() {
+    final order = widget.order;
+    if (order == null) {
+      return;
+    }
+
+    _customerNameController.text = order.customerName;
+    _phoneController.text = order.phoneNumber;
+    _totalPriceController.text = formatPrice(order.totalPrice);
+    _paidAmountController.text = formatPrice(order.paidAmount);
+    _notesController.text = order.notes ?? '';
   }
 
   @override
@@ -123,23 +142,43 @@ class _AddCarpetOrderScreenState extends State<AddCarpetOrderScreen> {
         );
       }
 
-      await _carpetOrderService.createOrder(
-        customerName: _customerNameController.text.trim(),
-        phoneNumber: _phoneController.text.trim(),
-        totalPrice: _totalPrice,
-        paidAmount: _paidAmount,
-        employeeId: user.id,
-        notes: _emptyToNull(_notesController.text),
-        photos: uploads,
-      );
+      final order = widget.order;
+      if (order == null) {
+        await _carpetOrderService.createOrder(
+          customerName: _customerNameController.text.trim(),
+          phoneNumber: _phoneController.text.trim(),
+          totalPrice: _totalPrice,
+          paidAmount: _paidAmount,
+          employeeId: user.id,
+          notes: _emptyToNull(_notesController.text),
+          photos: uploads,
+        );
+      } else {
+        await _carpetOrderService.updateOrder(
+          id: order.id,
+          customerName: _customerNameController.text.trim(),
+          phoneNumber: _phoneController.text.trim(),
+          totalPrice: _totalPrice,
+          paidAmount: _paidAmount,
+          notes: _emptyToNull(_notesController.text),
+          isDelivered: order.isDelivered,
+          photos: uploads,
+        );
+      }
 
       if (!mounted) {
         return;
       }
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('تم حفظ طلب السجاد بنجاح')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _isEditing
+                ? 'تم تعديل طلب السجاد بنجاح'
+                : 'تم حفظ طلب السجاد بنجاح',
+          ),
+        ),
+      );
       Navigator.of(context).pop(true);
     } catch (_) {
       if (!mounted) {
@@ -147,7 +186,9 @@ class _AddCarpetOrderScreenState extends State<AddCarpetOrderScreen> {
       }
 
       setState(() {
-        _errorMessage = 'تعذر حفظ طلب السجاد. حاول مرة أخرى';
+        _errorMessage = _isEditing
+            ? 'تعذر تعديل طلب السجاد. حاول مرة أخرى'
+            : 'تعذر حفظ طلب السجاد. حاول مرة أخرى';
         _isSubmitting = false;
       });
     }
@@ -198,7 +239,9 @@ class _AddCarpetOrderScreenState extends State<AddCarpetOrderScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F8F8),
-      appBar: AppBar(title: const Text('إضافة طلب سجاد')),
+      appBar: AppBar(
+        title: Text(_isEditing ? 'تعديل طلب السجاد' : 'إضافة طلب سجاد'),
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
@@ -300,10 +343,49 @@ class _AddCarpetOrderScreenState extends State<AddCarpetOrderScreen> {
                   ),
                 ),
                 const SizedBox(height: 18),
+                if (_isEditing && widget.order!.photoUrls.isNotEmpty) ...[
+                  Text(
+                    'الصور الحالية',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    height: 88,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: widget.order!.photoUrls.length,
+                      separatorBuilder: (_, _) => const SizedBox(width: 10),
+                      itemBuilder: (context, index) {
+                        return ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.network(
+                            widget.order!.photoUrls[index],
+                            width: 88,
+                            height: 88,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, _, _) {
+                              return Container(
+                                width: 88,
+                                height: 88,
+                                color: const Color(0xFFE8F3F5),
+                                child: const Icon(Icons.broken_image_outlined),
+                              );
+                            },
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                ],
                 OutlinedButton.icon(
                   onPressed: _isSubmitting ? null : _takePhoto,
                   icon: const Icon(Icons.photo_camera_outlined),
-                  label: const Text('التقاط صورة للسجاد'),
+                  label: Text(
+                    _isEditing ? 'إضافة صورة جديدة' : 'التقاط صورة للسجاد',
+                  ),
                 ),
                 if (_photos.isNotEmpty) ...[
                   const SizedBox(height: 12),
@@ -354,7 +436,7 @@ class _AddCarpetOrderScreenState extends State<AddCarpetOrderScreen> {
                     ),
                   )
                 : const Icon(Icons.save_outlined),
-            label: const Text('حفظ طلب السجاد'),
+            label: Text(_isEditing ? 'حفظ التعديل' : 'حفظ طلب السجاد'),
           ),
         ),
       ),

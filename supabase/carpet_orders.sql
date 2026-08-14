@@ -64,7 +64,7 @@ set public = true;
 alter table public.carpet_orders enable row level security;
 alter table public.carpet_order_photos enable row level security;
 
-grant select, insert, update on public.carpet_orders to authenticated;
+grant select, insert, update, delete on public.carpet_orders to authenticated;
 grant select, insert, update, delete on public.carpet_order_photos to authenticated;
 grant usage, select on sequence public.carpet_orders_id_seq to authenticated;
 grant usage, select on sequence public.carpet_order_photos_id_seq to authenticated;
@@ -84,16 +84,25 @@ on public.carpet_orders;
 drop policy if exists "Admins can update carpet orders"
 on public.carpet_orders;
 
+drop policy if exists "Admins can delete carpet orders"
+on public.carpet_orders;
+
 drop policy if exists "Users can read carpet order photos"
 on public.carpet_order_photos;
 
 drop policy if exists "Users can insert photos for own carpet orders"
 on public.carpet_order_photos;
 
+drop policy if exists "Admins can delete carpet order photos"
+on public.carpet_order_photos;
+
 drop policy if exists "Users can read carpet photos"
 on storage.objects;
 
 drop policy if exists "Users can upload carpet photos"
+on storage.objects;
+
+drop policy if exists "Admins can delete carpet photos"
 on storage.objects;
 
 create policy "Active users can insert own carpet orders"
@@ -140,6 +149,12 @@ to authenticated
 using (public.is_admin())
 with check (public.is_admin());
 
+create policy "Admins can delete carpet orders"
+on public.carpet_orders
+for delete
+to authenticated
+using (public.is_admin());
+
 create policy "Users can read carpet order photos"
 on public.carpet_order_photos
 for select
@@ -168,6 +183,12 @@ with check (
   )
 );
 
+create policy "Admins can delete carpet order photos"
+on public.carpet_order_photos
+for delete
+to authenticated
+using (public.is_admin());
+
 create policy "Users can read carpet photos"
 on storage.objects
 for select
@@ -179,3 +200,9 @@ on storage.objects
 for insert
 to authenticated
 with check (bucket_id = 'carpet-orders' and public.is_active_user());
+
+create policy "Admins can delete carpet photos"
+on storage.objects
+for delete
+to authenticated
+using (bucket_id = 'carpet-orders' and public.is_admin());

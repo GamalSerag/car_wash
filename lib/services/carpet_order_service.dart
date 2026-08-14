@@ -48,6 +48,46 @@ class CarpetOrderService {
     }
   }
 
+  Future<CarpetOrderModel> updateOrder({
+    required int id,
+    required String customerName,
+    required String phoneNumber,
+    required double totalPrice,
+    required double paidAmount,
+    String? notes,
+    bool? isDelivered,
+    List<CarpetOrderPhotoUpload> photos = const [],
+  }) async {
+    try {
+      final remainingAmount = totalPrice - paidAmount;
+      final updateData = <String, dynamic>{
+        'customer_name': customerName,
+        'phone_number': phoneNumber,
+        'total_price': totalPrice,
+        'paid_amount': paidAmount,
+        'remaining_amount': remainingAmount < 0 ? 0 : remainingAmount,
+        'notes': notes,
+      };
+
+      if (isDelivered != null) {
+        updateData['is_delivered'] = isDelivered;
+        updateData['delivered_at'] = isDelivered
+            ? DateTime.now().toUtc().toIso8601String()
+            : null;
+      }
+
+      await _client.from('carpet_orders').update(updateData).eq('id', id);
+
+      if (photos.isNotEmpty) {
+        await _uploadOrderPhotos(id, photos);
+      }
+
+      return await getOrder(id);
+    } catch (error) {
+      throw Exception('Failed to update carpet order: $error');
+    }
+  }
+
   Future<CarpetOrderModel> getOrder(int id) async {
     try {
       final data = await _client
@@ -87,6 +127,27 @@ class CarpetOrderService {
           .eq('id', id);
     } catch (error) {
       throw Exception('Failed to mark carpet order delivered: $error');
+    }
+  }
+
+  Future<void> deleteOrder(int id) async {
+    try {
+      final photos = await _client
+          .from('carpet_order_photos')
+          .select('storage_path')
+          .eq('order_id', id);
+      final paths = photos
+          .map((photo) => photo['storage_path'] as String?)
+          .whereType<String>()
+          .toList();
+
+      if (paths.isNotEmpty) {
+        await _client.storage.from('carpet-orders').remove(paths);
+      }
+
+      await _client.from('carpet_orders').delete().eq('id', id);
+    } catch (error) {
+      throw Exception('Failed to delete carpet order: $error');
     }
   }
 
