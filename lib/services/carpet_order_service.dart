@@ -117,11 +117,13 @@ class CarpetOrderService {
 
   Future<void> markDelivered(int id) async {
     try {
+      final order = await getOrder(id);
       await _client
           .from('carpet_orders')
           .update({
             'is_delivered': true,
             'delivered_at': DateTime.now().toUtc().toIso8601String(),
+            'paid_amount': order.totalPrice,
             'remaining_amount': 0,
           })
           .eq('id', id);

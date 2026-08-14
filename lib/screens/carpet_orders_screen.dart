@@ -202,34 +202,10 @@ class _CarpetOrdersScreenState extends State<CarpetOrdersScreen> {
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                 sliver: SliverToBoxAdapter(
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: SummaryCard(
-                              title: 'عدد الطلبات',
-                              value: _orders.length.toString(),
-                              icon: Icons.inventory_2_outlined,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: SummaryCard(
-                              title: 'المتبقي',
-                              value: '${formatPrice(_remainingTotal)} ج.م',
-                              icon: Icons.pending_actions,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      SummaryCard(
-                        title: 'إجمالي المدفوع',
-                        value: '${formatPrice(_paidTotal)} ج.م',
-                        icon: Icons.price_check_outlined,
-                      ),
-                    ],
+                  child: CarpetOrdersSummary(
+                    ordersCount: _orders.length,
+                    remainingTotal: _remainingTotal,
+                    paidTotal: _paidTotal,
                   ),
                 ),
               ),
@@ -441,37 +417,20 @@ class CarpetOrderTile extends StatelessWidget {
                   label: const Text('تم الاستلام'),
                 ),
               if (onEdit != null || onDelete != null)
-                PopupMenuButton<String>(
-                  tooltip: 'خيارات الطلب',
-                  onSelected: (value) {
-                    if (value == 'edit') {
-                      onEdit?.call();
-                    } else if (value == 'delete') {
-                      onDelete?.call();
-                    }
-                  },
-                  itemBuilder: (context) => [
+                Wrap(
+                  spacing: 4,
+                  children: [
                     if (onEdit != null)
-                      const PopupMenuItem(
-                        value: 'edit',
-                        child: Row(
-                          children: [
-                            Icon(Icons.edit_outlined),
-                            SizedBox(width: 8),
-                            Text('تعديل'),
-                          ],
-                        ),
+                      TextButton.icon(
+                        onPressed: onEdit,
+                        icon: const Icon(Icons.edit_outlined, size: 18),
+                        label: const Text('تعديل'),
                       ),
                     if (onDelete != null)
-                      const PopupMenuItem(
-                        value: 'delete',
-                        child: Row(
-                          children: [
-                            Icon(Icons.delete_outline),
-                            SizedBox(width: 8),
-                            Text('حذف'),
-                          ],
-                        ),
+                      TextButton.icon(
+                        onPressed: onDelete,
+                        icon: const Icon(Icons.delete_outline, size: 18),
+                        label: const Text('حذف'),
                       ),
                   ],
                 ),
@@ -479,6 +438,114 @@ class CarpetOrderTile extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class CarpetOrdersSummary extends StatelessWidget {
+  const CarpetOrdersSummary({
+    super.key,
+    required this.ordersCount,
+    required this.remainingTotal,
+    required this.paidTotal,
+  });
+
+  final int ordersCount;
+  final double remainingTotal;
+  final double paidTotal;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF145968),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _SummaryMetric(
+              title: 'عدد الطلبات',
+              value: ordersCount.toString(),
+              icon: Icons.inventory_2_outlined,
+            ),
+          ),
+          _SummaryDivider(),
+          Expanded(
+            child: _SummaryMetric(
+              title: 'المتبقي',
+              value: '${formatPrice(remainingTotal)} ج.م',
+              icon: Icons.pending_actions,
+            ),
+          ),
+          _SummaryDivider(),
+          Expanded(
+            child: _SummaryMetric(
+              title: 'إجمالي المدفوع',
+              value: '${formatPrice(paidTotal)} ج.م',
+              icon: Icons.price_check_outlined,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SummaryMetric extends StatelessWidget {
+  const _SummaryMetric({
+    required this.title,
+    required this.value,
+    required this.icon,
+  });
+
+  final String title;
+  final String value;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Icon(icon, color: Colors.white, size: 22),
+        const SizedBox(height: 8),
+        Text(
+          title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: Colors.white.withValues(alpha: 0.78),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: theme.textTheme.titleMedium?.copyWith(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SummaryDivider extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 1,
+      height: 54,
+      margin: const EdgeInsets.symmetric(horizontal: 8),
+      color: Colors.white.withValues(alpha: 0.18),
     );
   }
 }
