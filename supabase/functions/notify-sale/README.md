@@ -1,7 +1,7 @@
 # notify-sale Edge Function
 
-This function sends a Firebase Cloud Messaging notification to the `admins`
-topic after a new sale is inserted.
+This function sends a Firebase Cloud Messaging notification to the current
+company admin topic after a new sale is inserted.
 
 ## Required Secrets
 
@@ -39,7 +39,7 @@ in Supabase SQL Editor.
 ## Test
 
 1. Install the Android app.
-2. Log in as an admin once so the phone subscribes to the `admins` topic.
+2. Log in as an admin once so the phone subscribes to the company admin topic.
 3. Close the app.
 4. Add a sale from an employee account.
 5. The admin phone should receive a push notification.

@@ -1,6 +1,7 @@
 class SaleModel {
   const SaleModel({
     required this.id,
+    required this.companyId,
     required this.vehicleTypeId,
     this.vehicleTypeName,
     this.vehicleTypeIconName,
@@ -14,6 +15,7 @@ class SaleModel {
   });
 
   final int id;
+  final String companyId;
   final int vehicleTypeId;
   final String? vehicleTypeName;
   final String? vehicleTypeIconName;
@@ -31,6 +33,7 @@ class SaleModel {
 
     return SaleModel(
       id: map['id'] as int,
+      companyId: map['company_id'] as String? ?? '',
       vehicleTypeId: map['vehicle_type_id'] as int,
       vehicleTypeName: vehicleType is Map<String, dynamic>
           ? vehicleType['name'] as String?
@@ -53,6 +56,7 @@ class SaleModel {
   Map<String, dynamic> toMap() {
     return {
       'id': id,
+      'company_id': companyId,
       'vehicle_type_id': vehicleTypeId,
       'vehicle_type_name': vehicleTypeName,
       'vehicle_type_icon_name': vehicleTypeIconName,

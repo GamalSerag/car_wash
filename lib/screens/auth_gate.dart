@@ -36,7 +36,10 @@ class _AuthGateState extends State<AuthGate> {
           ? null
           : await _authService.getCurrentProfile();
       if (profile != null) {
-        await _notificationService.registerCurrentDevice(role: profile.role);
+        await _notificationService.registerCurrentDevice(
+          role: profile.role,
+          companyId: profile.companyId,
+        );
       }
 
       if (!mounted) {
@@ -90,7 +93,7 @@ class _AuthGateState extends State<AuthGate> {
       return LoginScreen(onLoginSuccess: _handleLoginSuccess);
     }
 
-    if (profile.role == 'admin') {
+    if (profile.isAdmin) {
       return AdminHomeScreen(profile: profile, onLogout: _handleLogout);
     }
 

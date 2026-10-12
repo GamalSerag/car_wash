@@ -6,6 +6,7 @@ const corsHeaders = {
 
 type SaleRecord = {
   id?: number;
+  company_id?: string | null;
   price?: number | string;
   vehicle_name?: string | null;
   plate_number?: string | null;
@@ -134,6 +135,7 @@ async function sendAdminNotification(
 ) {
   const title = 'عملية غسيل جديدة';
   const body = buildNotificationBody(sale);
+  const topic = buildCompanyAdminTopic(sale.company_id);
 
   const fcmResponse = await fetch(
     `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`,
@@ -145,7 +147,7 @@ async function sendAdminNotification(
       },
       body: JSON.stringify({
         message: {
-          topic: 'admins',
+          topic,
           notification: {
             title,
             body,
@@ -159,6 +161,7 @@ async function sendAdminNotification(
           data: {
             type: 'sale_inserted',
             sale_id: String(sale.id ?? ''),
+            company_id: sale.company_id ?? '',
           },
         },
       }),
@@ -170,6 +173,14 @@ async function sendAdminNotification(
   }
 
   return await fcmResponse.json();
+}
+
+function buildCompanyAdminTopic(companyId?: string | null): string {
+  if (!companyId) {
+    return 'admins';
+  }
+
+  return `company_${companyId.replaceAll(/[^a-zA-Z0-9_-]/g, '_')}_admins`;
 }
 
 function buildNotificationBody(sale: SaleRecord): string {

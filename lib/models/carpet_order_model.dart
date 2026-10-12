@@ -1,6 +1,7 @@
 class CarpetOrderModel {
   const CarpetOrderModel({
     required this.id,
+    required this.companyId,
     required this.customerName,
     required this.phoneNumber,
     required this.totalPrice,
@@ -16,6 +17,7 @@ class CarpetOrderModel {
   });
 
   final int id;
+  final String companyId;
   final String customerName;
   final String phoneNumber;
   final double totalPrice;
@@ -34,6 +36,7 @@ class CarpetOrderModel {
 
     return CarpetOrderModel(
       id: map['id'] as int,
+      companyId: map['company_id'] as String? ?? '',
       customerName: map['customer_name'] as String? ?? '',
       phoneNumber: map['phone_number'] as String? ?? '',
       totalPrice: _toDouble(map['total_price']),
@@ -60,6 +63,7 @@ class CarpetOrderModel {
   Map<String, dynamic> toMap() {
     return {
       'id': id,
+      'company_id': companyId,
       'customer_name': customerName,
       'phone_number': phoneNumber,
       'total_price': totalPrice,

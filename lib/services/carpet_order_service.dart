@@ -21,9 +21,11 @@ class CarpetOrderService {
   }) async {
     try {
       final remainingAmount = totalPrice - paidAmount;
+      final companyId = await _getCurrentCompanyId();
       final data = await _client
           .from('carpet_orders')
           .insert({
+            'company_id': companyId,
             'customer_name': customerName,
             'phone_number': phoneNumber,
             'total_price': totalPrice,
@@ -157,13 +159,14 @@ class CarpetOrderService {
     int orderId,
     List<CarpetOrderPhotoUpload> photos,
   ) async {
+    final companyId = await _getCurrentCompanyId();
     for (final photo in photos) {
       final safeName = photo.fileName.replaceAll(
         RegExp(r'[^a-zA-Z0-9._-]'),
         '_',
       );
       final path =
-          '$orderId/${DateTime.now().millisecondsSinceEpoch}-$safeName';
+          '$companyId/carpet-orders/$orderId/${DateTime.now().millisecondsSinceEpoch}-$safeName';
 
       await _client.storage
           .from('carpet-orders')
@@ -178,6 +181,7 @@ class CarpetOrderService {
           .getPublicUrl(path);
 
       await _client.from('carpet_order_photos').insert({
+        'company_id': companyId,
         'order_id': orderId,
         'photo_url': publicUrl,
         'storage_path': path,
@@ -190,6 +194,25 @@ class CarpetOrderService {
     profiles(full_name),
     carpet_order_photos(photo_url)
   ''';
+
+  Future<String> _getCurrentCompanyId() async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) {
+      throw Exception('No authenticated user');
+    }
+
+    final data = await _client
+        .from('profiles')
+        .select('company_id')
+        .eq('id', userId)
+        .single();
+    final companyId = data['company_id'] as String?;
+    if (companyId == null || companyId.isEmpty) {
+      throw Exception('Current user has no company');
+    }
+
+    return companyId;
+  }
 }
 
 class CarpetOrderPhotoUpload {

@@ -16,7 +16,9 @@ class VehicleTypeService {
   }) async {
     try {
       final safeFileName = fileName.replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
-      final path = '${DateTime.now().millisecondsSinceEpoch}-$safeFileName';
+      final companyId = await _getCurrentCompanyId();
+      final path =
+          '$companyId/vehicle-icons/${DateTime.now().millisecondsSinceEpoch}-$safeFileName';
 
       await _client.storage
           .from('vehicle-icons')
@@ -121,5 +123,24 @@ class VehicleTypeService {
     } catch (error) {
       throw Exception('Failed to deactivate vehicle type: $error');
     }
+  }
+
+  Future<String> _getCurrentCompanyId() async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) {
+      throw Exception('No authenticated user');
+    }
+
+    final data = await _client
+        .from('profiles')
+        .select('company_id')
+        .eq('id', userId)
+        .single();
+    final companyId = data['company_id'] as String?;
+    if (companyId == null || companyId.isEmpty) {
+      throw Exception('Current user has no company');
+    }
+
+    return companyId;
   }
 }

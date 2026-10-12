@@ -14,9 +14,9 @@ class NotificationService {
 
   static StreamSubscription<String>? _tokenRefreshSubscription;
   static String? _registeredUserId;
-  static String? _registeredRole;
+  static String? _registeredTopic;
 
-  Future<void> registerCurrentDevice({String? role}) async {
+  Future<void> registerCurrentDevice({String? role, String? companyId}) async {
     if (!_supportsFirebaseMessaging) {
       return;
     }
@@ -38,7 +38,7 @@ class NotificationService {
     }
 
     try {
-      await _syncTopicSubscription(messaging, role);
+      await _syncTopicSubscription(messaging, role, companyId);
     } catch (_) {
       // Notifications should never block login or normal sales work.
     }
@@ -46,7 +46,7 @@ class NotificationService {
     try {
       final token = await messaging.getToken();
       if (token != null) {
-        await _saveToken(user.id, token);
+        await _saveToken(user.id, token, companyId);
       }
     } catch (_) {
       // Token storage is useful for future direct sends, but topics can work
@@ -56,7 +56,7 @@ class NotificationService {
     if (_registeredUserId != user.id) {
       await _tokenRefreshSubscription?.cancel();
       _tokenRefreshSubscription = messaging.onTokenRefresh.listen((token) {
-        unawaited(_saveToken(user.id, token));
+        unawaited(_saveToken(user.id, token, companyId));
       });
       _registeredUserId = user.id;
     }
@@ -75,19 +75,28 @@ class NotificationService {
       }
       await messaging.unsubscribeFromTopic('admins');
       await messaging.unsubscribeFromTopic('employees');
+      final topic = _registeredTopic;
+      if (topic != null) {
+        await messaging.unsubscribeFromTopic(topic);
+      }
     } catch (_) {
       // Ignore logout cleanup failures.
     } finally {
       await _tokenRefreshSubscription?.cancel();
       _tokenRefreshSubscription = null;
       _registeredUserId = null;
-      _registeredRole = null;
+      _registeredTopic = null;
     }
   }
 
-  Future<void> _saveToken(String userId, String token) async {
+  Future<void> _saveToken(
+    String userId,
+    String token,
+    String? companyId,
+  ) async {
     await _client.from('device_tokens').upsert({
       'user_id': userId,
+      if (companyId != null && companyId.isNotEmpty) 'company_id': companyId,
       'token': token,
       'platform': _platformName,
       'updated_at': DateTime.now().toUtc().toIso8601String(),
@@ -97,16 +106,33 @@ class NotificationService {
   Future<void> _syncTopicSubscription(
     FirebaseMessaging messaging,
     String? role,
+    String? companyId,
   ) async {
-    final topic = role == 'admin' ? 'admins' : 'employees';
-    if (_registeredRole == topic) {
+    final topic = _topicFor(role, companyId);
+    if (topic == null || _registeredTopic == topic) {
       return;
     }
 
     await messaging.unsubscribeFromTopic('admins');
     await messaging.unsubscribeFromTopic('employees');
+    final registeredTopic = _registeredTopic;
+    if (registeredTopic != null) {
+      await messaging.unsubscribeFromTopic(registeredTopic);
+    }
     await messaging.subscribeToTopic(topic);
-    _registeredRole = topic;
+    _registeredTopic = topic;
+  }
+
+  String? _topicFor(String? role, String? companyId) {
+    if (companyId == null || companyId.isEmpty) {
+      return null;
+    }
+
+    final safeCompanyId = companyId.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
+    final audience = role == 'admin' || role == 'super_admin'
+        ? 'admins'
+        : 'employees';
+    return 'company_${safeCompanyId}_$audience';
   }
 
   bool get _supportsFirebaseMessaging {
