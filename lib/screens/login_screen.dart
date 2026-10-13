@@ -150,14 +150,14 @@ class _LoginScreenState extends State<LoginScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Icon(
-                      Icons.local_car_wash,
-                      size: 72,
-                      color: theme.colorScheme.primary,
+                    Image.asset(
+                      'assets/images/app_logo.png',
+                      height: 112,
+                      fit: BoxFit.contain,
                     ),
                     const SizedBox(height: 20),
                     Text(
-                      'مغسلة سراج',
+                      'مغسلة',
                       textAlign: TextAlign.center,
                       style: theme.textTheme.headlineMedium?.copyWith(
                         color: theme.colorScheme.primary,

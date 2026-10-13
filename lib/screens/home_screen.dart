@@ -245,7 +245,7 @@ class DashboardHeader extends StatelessWidget {
                 Text(
                   companyName?.trim().isNotEmpty == true
                       ? companyName!.trim()
-                      : 'مغسلة سراج',
+                      : 'مغسلة',
                   style: theme.textTheme.headlineSmall?.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
