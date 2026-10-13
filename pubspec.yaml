@@ -16,6 +16,17 @@ dependencies:
   image_picker: ^1.2.3
   supabase_flutter: ^2.16.0
 
+dev_dependencies:
+  flutter_launcher_icons: ^0.14.4
+
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/images/app_logo.png"
+  adaptive_icon_background: "#003B46"
+  adaptive_icon_foreground: "assets/images/app_logo.png"
+  adaptive_icon_foreground_inset: 0
+
 flutter:
   uses-material-design: true
   assets:
