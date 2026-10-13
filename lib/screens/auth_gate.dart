@@ -8,6 +8,7 @@ import 'admin_home_screen.dart';
 import 'home_screen.dart';
 import 'login_screen.dart';
 import 'splash_screen.dart';
+import 'super_admin_home_screen.dart';
 
 class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
@@ -91,6 +92,10 @@ class _AuthGateState extends State<AuthGate> {
     final profile = _profile;
     if (profile == null) {
       return LoginScreen(onLoginSuccess: _handleLoginSuccess);
+    }
+
+    if (profile.isSuperAdmin) {
+      return SuperAdminHomeScreen(profile: profile, onLogout: _handleLogout);
     }
 
     if (profile.isAdmin) {

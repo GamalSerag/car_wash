@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../services/auth_service.dart';
+import 'signup_request_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key, required this.onLoginSuccess});
@@ -244,6 +245,20 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             )
                           : const Text('تسجيل الدخول'),
+                    ),
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      onPressed: _isLoading
+                          ? null
+                          : () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => const SignupRequestScreen(),
+                                ),
+                              );
+                            },
+                      icon: const Icon(Icons.person_add_alt_outlined),
+                      label: const Text('إنشاء حساب جديد'),
                     ),
                   ],
                 ),

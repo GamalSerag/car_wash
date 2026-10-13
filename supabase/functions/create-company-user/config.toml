@@ -1,0 +1,2 @@
+[functions.create-company-user]
+verify_jwt = true

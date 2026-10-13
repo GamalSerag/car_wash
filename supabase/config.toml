@@ -1,2 +1,5 @@
 [functions.notify-sale]
 verify_jwt = false
+
+[functions.create-company-user]
+verify_jwt = true
