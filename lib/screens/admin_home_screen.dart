@@ -257,6 +257,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             slivers: [
               SliverToBoxAdapter(
                 child: DashboardHeader(
+                  companyName: widget.profile.companyName,
                   profileName: widget.profile.fullName,
                   onLogout: _logout,
                 ),

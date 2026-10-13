@@ -122,6 +122,7 @@ class _HomeScreenState extends State<HomeScreen> {
             slivers: [
               SliverToBoxAdapter(
                 child: DashboardHeader(
+                  companyName: _profile?.companyName,
                   profileName: _profile?.fullName ?? 'موظف المغسلة',
                   onLogout: _logout,
                 ),
@@ -215,10 +216,12 @@ class _HomeScreenState extends State<HomeScreen> {
 class DashboardHeader extends StatelessWidget {
   const DashboardHeader({
     super.key,
+    this.companyName,
     required this.profileName,
     required this.onLogout,
   });
 
+  final String? companyName;
   final String profileName;
   final VoidCallback onLogout;
 
@@ -240,7 +243,9 @@ class DashboardHeader extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'مغسلة سراج',
+                  companyName?.trim().isNotEmpty == true
+                      ? companyName!.trim()
+                      : 'مغسلة سراج',
                   style: theme.textTheme.headlineSmall?.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
