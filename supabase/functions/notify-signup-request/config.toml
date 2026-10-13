@@ -1,0 +1,2 @@
+[functions.notify-signup-request]
+verify_jwt = false

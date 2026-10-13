@@ -1,5 +1,8 @@
 [functions.notify-sale]
 verify_jwt = false
 
+[functions.notify-signup-request]
+verify_jwt = false
+
 [functions.create-company-user]
 verify_jwt = true

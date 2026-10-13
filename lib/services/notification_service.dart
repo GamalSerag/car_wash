@@ -73,6 +73,7 @@ class NotificationService {
       if (token != null) {
         await _client.from('device_tokens').delete().eq('token', token);
       }
+      await messaging.unsubscribeFromTopic('super_admins');
       await messaging.unsubscribeFromTopic('admins');
       await messaging.unsubscribeFromTopic('employees');
       final topic = _registeredTopic;
@@ -124,14 +125,16 @@ class NotificationService {
   }
 
   String? _topicFor(String? role, String? companyId) {
+    if (role == 'super_admin') {
+      return 'super_admins';
+    }
+
     if (companyId == null || companyId.isEmpty) {
       return null;
     }
 
     final safeCompanyId = companyId.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
-    final audience = role == 'admin' || role == 'super_admin'
-        ? 'admins'
-        : 'employees';
+    final audience = role == 'admin' ? 'admins' : 'employees';
     return 'company_${safeCompanyId}_$audience';
   }
 
