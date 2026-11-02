@@ -4,6 +4,7 @@ class CarpetOrderModel {
     required this.companyId,
     required this.customerName,
     required this.phoneNumber,
+    this.pieceCount = 1,
     required this.totalPrice,
     required this.paidAmount,
     required this.remainingAmount,
@@ -20,6 +21,7 @@ class CarpetOrderModel {
   final String companyId;
   final String customerName;
   final String phoneNumber;
+  final int pieceCount;
   final double totalPrice;
   final double paidAmount;
   final double remainingAmount;
@@ -39,6 +41,7 @@ class CarpetOrderModel {
       companyId: map['company_id'] as String? ?? '',
       customerName: map['customer_name'] as String? ?? '',
       phoneNumber: map['phone_number'] as String? ?? '',
+      pieceCount: map['piece_count'] as int? ?? 1,
       totalPrice: _toDouble(map['total_price']),
       paidAmount: _toDouble(map['paid_amount']),
       remainingAmount: _toDouble(map['remaining_amount']),
@@ -66,6 +69,7 @@ class CarpetOrderModel {
       'company_id': companyId,
       'customer_name': customerName,
       'phone_number': phoneNumber,
+      'piece_count': pieceCount,
       'total_price': totalPrice,
       'paid_amount': paidAmount,
       'remaining_amount': remainingAmount,

@@ -13,6 +13,7 @@ import 'carpet_orders_screen.dart';
 import 'home_screen.dart';
 import 'previous_sales_screen.dart';
 import 'vehicle_types_management_screen.dart';
+import 'offline_sync_report_screen.dart';
 
 class AdminHomeScreen extends StatefulWidget {
   const AdminHomeScreen({
@@ -35,6 +36,8 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   final SupabaseClient _supabase = Supabase.instance.client;
 
   RealtimeChannel? _salesChannel;
+  Timer? _salesDebounce;
+  bool _refreshAgain = false;
   List<SaleModel> _todaySales = const [];
   bool _isLoading = true;
   bool _isRefreshing = false;
@@ -53,6 +56,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
 
   @override
   void dispose() {
+    _salesDebounce?.cancel();
     final channel = _salesChannel;
     if (channel != null) {
       unawaited(_supabase.removeChannel(channel));
@@ -67,18 +71,30 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     }
 
     _salesChannel = _supabase
-        .channel('admin-sales-inserts')
+        .channel('admin-sales-inserts-${widget.profile.companyId}')
         .onPostgresChanges(
           event: PostgresChangeEvent.insert,
           schema: 'public',
           table: 'sales',
-          callback: (_) => _handleSaleInserted(),
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'company_id',
+            value: widget.profile.companyId,
+          ),
+          callback: (_) {
+            _salesDebounce?.cancel();
+            _salesDebounce = Timer(
+              const Duration(milliseconds: 250),
+              _handleSaleInserted,
+            );
+          },
         )
         .subscribe();
   }
 
   Future<void> _handleSaleInserted() async {
     if (_isRefreshing) {
+      _refreshAgain = true;
       return;
     }
 
@@ -146,6 +162,10 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       });
     } finally {
       _isRefreshing = false;
+      if (_refreshAgain && mounted) {
+        _refreshAgain = false;
+        unawaited(_refreshDataSilently());
+      }
     }
   }
 
@@ -299,6 +319,16 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                         onPressed: _openVehicleTypesManagement,
                         icon: const Icon(Icons.tune),
                         label: const Text('إدارة أنواع المركبات'),
+                      ),
+                      const SizedBox(height: 10),
+                      OutlinedButton.icon(
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const OfflineSyncReportsScreen(),
+                          ),
+                        ),
+                        icon: const Icon(Icons.cloud_done_outlined),
+                        label: const Text('ملخصات المزامنة'),
                       ),
                       const SizedBox(height: 10),
                       OutlinedButton.icon(

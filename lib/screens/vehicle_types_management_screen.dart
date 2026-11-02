@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../core/input_limits.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -432,7 +433,7 @@ class _VehicleTypeDialogState extends State<_VehicleTypeDialog> {
   }
 
   double _parsePrice(String value) {
-    return double.tryParse(value.trim().replaceAll(',', '.')) ?? 0;
+    return InputLimits.parseAmount(value) ?? 0;
   }
 
   @override
@@ -464,6 +465,7 @@ class _VehicleTypeDialogState extends State<_VehicleTypeDialog> {
               const SizedBox(height: 16),
               TextFormField(
                 controller: _nameController,
+                maxLength: InputLimits.name,
                 decoration: const InputDecoration(
                   labelText: 'اسم النوع',
                   border: OutlineInputBorder(),
@@ -472,12 +474,14 @@ class _VehicleTypeDialogState extends State<_VehicleTypeDialog> {
                   if (value == null || value.trim().isEmpty) {
                     return 'يرجى إدخال اسم نوع المركبة';
                   }
-                  return null;
+                  return InputLimits.textError(value, InputLimits.name);
                 },
               ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _priceController,
+                maxLength: InputLimits.moneyLength,
+                inputFormatters: [MoneyInputFormatter()],
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,
                 ),
@@ -486,10 +490,7 @@ class _VehicleTypeDialogState extends State<_VehicleTypeDialog> {
                   border: OutlineInputBorder(),
                 ),
                 validator: (value) {
-                  if (_parsePrice(value ?? '') <= 0) {
-                    return 'يرجى إدخال سعر أكبر من صفر';
-                  }
-                  return null;
+                  return InputLimits.amountError(value);
                 },
               ),
             ],

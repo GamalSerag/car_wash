@@ -1,4 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
+import '../core/input_limits.dart';
 
 import '../models/sale_model.dart';
 
@@ -15,22 +17,42 @@ class SalesService {
     required double price,
     required String employeeId,
     String? notes,
+    String? clientOperationId,
+    DateTime? createdAt,
   }) async {
+    InputLimits.checkAmount(price);
+    InputLimits.checkText(vehicleName, InputLimits.name);
+    InputLimits.checkText(plateNumber, InputLimits.plate);
+    InputLimits.checkText(notes, InputLimits.notes);
+    if (price <= 0) throw ArgumentError('السعر يجب أن يكون أكبر من صفر');
+    if (_client.auth.currentUser?.id != employeeId)
+      throw const AuthException('لا يمكن التسجيل باسم موظف آخر');
     try {
-      final data = await _client
-          .from('sales')
-          .insert({
-            'vehicle_type_id': vehicleTypeId,
-            'vehicle_name': vehicleName,
-            'plate_number': plateNumber,
-            'price': price,
-            'employee_id': employeeId,
-            'notes': notes,
-          })
-          .select(_salesSelect)
-          .single();
-
-      return SaleModel.fromMap(data);
+      final result = Map<String, dynamic>.from(
+        await _client.rpc(
+              'submit_online_sale',
+              params: {
+                'operation_id': clientOperationId ?? const Uuid().v4(),
+                'payload': {
+                  'vehicle_type_id': vehicleTypeId,
+                  'vehicle_name': vehicleName,
+                  'plate_number': plateNumber,
+                  'price_cents': (price * 100).round(),
+                  'notes': notes,
+                  'created_at': (createdAt ?? DateTime.now())
+                      .toUtc()
+                      .toIso8601String(),
+                },
+              },
+            )
+            as Map,
+      );
+      final data = result['sale'];
+      if (data is! Map)
+        throw StateError(
+          'هذه العملية محفوظة سابقًا أو حُذفت. راجع قائمة المبيعات',
+        );
+      return SaleModel.fromMap(Map<String, dynamic>.from(data));
     } catch (error) {
       throw Exception('Failed to create sale: $error');
     }
@@ -44,6 +66,10 @@ class SalesService {
     required double price,
     String? notes,
   }) async {
+    InputLimits.checkAmount(price);
+    InputLimits.checkText(vehicleName, InputLimits.name);
+    InputLimits.checkText(plateNumber, InputLimits.plate);
+    InputLimits.checkText(notes, InputLimits.notes);
     try {
       final data = await _client
           .from('sales')
@@ -77,8 +103,8 @@ class SalesService {
       final data = await _client
           .from('sales')
           .select(_salesSelect)
-          .gte('created_at', _todayStart().toIso8601String())
-          .lt('created_at', _tomorrowStart().toIso8601String())
+          .gte('created_at', _todayStart().toUtc().toIso8601String())
+          .lt('created_at', _tomorrowStart().toUtc().toIso8601String())
           .order('created_at', ascending: false);
 
       return data.map(SaleModel.fromMap).toList();
@@ -128,7 +154,7 @@ class SalesService {
       final data = await _client
           .from('sales')
           .select(_salesSelect)
-          .lt('created_at', _todayStart().toIso8601String())
+          .lt('created_at', _todayStart().toUtc().toIso8601String())
           .order('created_at', ascending: false);
 
       return data.map(SaleModel.fromMap).toList();
@@ -143,7 +169,8 @@ class SalesService {
   }
 
   DateTime _tomorrowStart() {
-    return _todayStart().add(const Duration(days: 1));
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day + 1);
   }
 
   static const String _salesSelect = '''

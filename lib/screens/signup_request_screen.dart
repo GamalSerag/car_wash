@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../core/input_limits.dart';
 
 import '../services/signup_request_service.dart';
 
@@ -141,6 +142,11 @@ class _SignupRequestScreenState extends State<SignupRequestScreen> {
                           const SizedBox(height: 14),
                           TextFormField(
                             controller: _addressController,
+                            maxLength: InputLimits.address,
+                            validator: (value) => InputLimits.textError(
+                              value,
+                              InputLimits.address,
+                            ),
                             enabled: !_isLoading,
                             decoration: const InputDecoration(
                               labelText: 'العنوان، اختياري',
@@ -151,6 +157,9 @@ class _SignupRequestScreenState extends State<SignupRequestScreen> {
                           const SizedBox(height: 14),
                           TextFormField(
                             controller: _notesController,
+                            maxLength: InputLimits.notes,
+                            validator: (value) =>
+                                InputLimits.textError(value, InputLimits.notes),
                             enabled: !_isLoading,
                             minLines: 2,
                             maxLines: 4,
@@ -209,8 +218,14 @@ class _TextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final limit = keyboardType == TextInputType.emailAddress
+        ? InputLimits.email
+        : keyboardType == TextInputType.phone
+        ? InputLimits.phone
+        : InputLimits.name;
     return TextFormField(
       controller: controller,
+      maxLength: limit,
       keyboardType: keyboardType,
       decoration: InputDecoration(
         labelText: label,
@@ -221,7 +236,7 @@ class _TextField extends StatelessWidget {
         if (value == null || value.trim().isEmpty) {
           return 'هذا الحقل مطلوب';
         }
-        return null;
+        return InputLimits.textError(value, limit);
       },
     );
   }

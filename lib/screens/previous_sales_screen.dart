@@ -167,15 +167,25 @@ class _PreviousSalesScreenState extends State<PreviousSalesScreen> {
 
         return Padding(
           padding: const EdgeInsets.only(bottom: 18),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+          child: ExpansionTile(
+            key: PageStorageKey<String>('previous-sales-${entry.key}'),
+            tilePadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 4,
+            ),
+            childrenPadding: const EdgeInsets.only(top: 10),
+            collapsedBackgroundColor: const Color(0xFFE8F3F5),
+            shape: const Border(),
+            collapsedShape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            title: _DayHeader(
+              date: entry.key,
+              weekday: daySales.first.createdAt.toLocal().weekday,
+              total: dayTotal,
+              count: daySales.length,
+            ),
             children: [
-              _DayHeader(
-                date: entry.key,
-                total: dayTotal,
-                count: daySales.length,
-              ),
-              const SizedBox(height: 10),
               ...daySales.map(
                 (sale) => Padding(
                   padding: const EdgeInsets.only(bottom: 10),
@@ -196,44 +206,62 @@ class _PreviousSalesScreenState extends State<PreviousSalesScreen> {
 class _DayHeader extends StatelessWidget {
   const _DayHeader({
     required this.date,
+    required this.weekday,
     required this.total,
     required this.count,
   });
 
   final String date;
+  final int weekday;
   final double total;
   final int count;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    const weekdays = [
+      'الاثنين',
+      'الثلاثاء',
+      'الأربعاء',
+      'الخميس',
+      'الجمعة',
+      'السبت',
+      'الأحد',
+    ];
 
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFFE8F3F5),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              date,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 10,
+          runSpacing: 4,
+          children: [
+            Text(
+              weekdays[weekday - 1],
               style: theme.textTheme.titleMedium?.copyWith(
                 color: AppColors.text,
                 fontWeight: FontWeight.bold,
               ),
             ),
-          ),
-          Text(
-            '$count مركبة - ${formatPrice(total)} ج.م',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: AppColors.mutedText,
-              fontWeight: FontWeight.w600,
+            Text(
+              date,
+              textDirection: TextDirection.ltr,
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: AppColors.text,
+                fontWeight: FontWeight.bold,
+              ),
             ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Text(
+          '$count مركبة - ${formatPrice(total)} ج.م',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: AppColors.mutedText,
+            fontWeight: FontWeight.w600,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

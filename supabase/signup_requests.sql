@@ -30,6 +30,7 @@ alter table public.signup_requests enable row level security;
 
 grant insert on public.signup_requests to anon;
 grant select, insert, update on public.signup_requests to authenticated;
+grant select, update on public.signup_requests to service_role;
 grant usage, select on sequence public.signup_requests_id_seq to anon;
 grant usage, select on sequence public.signup_requests_id_seq to authenticated;
 

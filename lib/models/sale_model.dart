@@ -12,6 +12,8 @@ class SaleModel {
     this.employeeName,
     this.notes,
     required this.createdAt,
+    this.clientOperationId,
+    this.syncedAt,
   });
 
   final int id;
@@ -26,6 +28,8 @@ class SaleModel {
   final String? employeeName;
   final String? notes;
   final DateTime createdAt;
+  final String? clientOperationId;
+  final DateTime? syncedAt;
 
   factory SaleModel.fromMap(Map<String, dynamic> map) {
     final vehicleType = map['vehicle_types'];
@@ -50,6 +54,8 @@ class SaleModel {
           : map['employee_name'] as String?,
       notes: map['notes'] as String?,
       createdAt: DateTime.parse(map['created_at'] as String),
+      clientOperationId: map['client_operation_id'] as String?,
+      syncedAt: DateTime.tryParse(map['synced_at'] as String? ?? ''),
     );
   }
 
@@ -67,6 +73,8 @@ class SaleModel {
       'employee_name': employeeName,
       'notes': notes,
       'created_at': createdAt.toIso8601String(),
+      'client_operation_id': clientOperationId,
+      'synced_at': syncedAt?.toIso8601String(),
     };
   }
 }

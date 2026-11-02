@@ -4,6 +4,8 @@
 -- 1. Open Supabase Dashboard > SQL Editor.
 -- 2. Run this whole file after the existing schema files.
 -- 3. Existing data is moved into one default company named "مغسلة سراج".
+-- 4. After signup_requests.sql, run company_access_control.sql to enforce
+--    company suspension and preserve super-admin reactivation access.
 --
 -- Model:
 -- - One Supabase project and one PostgreSQL database.
@@ -346,6 +348,12 @@ alter table public.device_tokens enable row level security;
 grant usage on schema public to authenticated;
 grant select, insert, update on public.companies to authenticated;
 grant select, update on public.profiles to authenticated;
+
+-- Server-side company provisioning must also have table privileges; bypassing
+-- RLS does not bypass PostgreSQL GRANT checks.
+grant usage on schema public to service_role;
+grant select, insert on public.companies to service_role;
+grant select, insert, update on public.profiles to service_role;
 grant select, insert, update on public.vehicle_types to authenticated;
 grant select, insert, update, delete on public.sales to authenticated;
 grant select, insert, update, delete on public.carpet_orders to authenticated;

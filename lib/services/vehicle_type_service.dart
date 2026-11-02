@@ -1,8 +1,11 @@
 import 'dart:typed_data';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../core/input_limits.dart';
 
 import '../models/vehicle_type_model.dart';
+import '../core/offline_protocol.dart';
+import 'offline_runtime.dart';
 
 class VehicleTypeService {
   VehicleTypeService({SupabaseClient? client})
@@ -48,7 +51,66 @@ class VehicleTypeService {
     }
   }
 
-  Future<List<VehicleTypeModel>> getActiveVehicleTypes() async {
+  Future<List<VehicleTypeModel>> getActiveVehicleTypes({
+    bool refreshCache = false,
+  }) async {
+    if (OfflineRuntime.owns(_client)) {
+      final user = _client.auth.currentUser?.id;
+      final profile = user == null
+          ? null
+          : await OfflineRuntime.session!.cachedProfile(
+              user,
+              allowExpired: OfflineRuntime.online.value,
+            );
+      if (profile != null &&
+          profile.canAccessApp &&
+          profile.role == 'employee') {
+        final key = 'types:${profile.id}:${profile.companyId}';
+        final cached = await OfflineRuntime.store!.cache(key);
+        Future<List<VehicleTypeModel>> refresh() async {
+          await OfflineRuntime.session!.ensure(_client, expectedUser: user);
+          final data = await _client
+              .from('vehicle_types')
+              .select()
+              .eq('is_active', true)
+              .eq('company_id', profile.companyId)
+              .order('id')
+              .timeout(const Duration(seconds: 12));
+          if (_client.auth.currentUser?.id != user) return <VehicleTypeModel>[];
+          await OfflineRuntime.store!.put(key, data);
+          return data.map(VehicleTypeModel.fromMap).toList();
+        }
+
+        if (cached != null && !refreshCache) {
+          if (OfflineRuntime.online.value &&
+              DateTime.now().millisecondsSinceEpoch - (cached['at'] as int) >
+                  const Duration(minutes: 5).inMilliseconds) {
+            refresh().catchError((Object _) => <VehicleTypeModel>[]);
+          }
+          return (cached['value'] as List)
+              .map(
+                (e) => VehicleTypeModel.fromMap(
+                  Map<String, dynamic>.from(e as Map),
+                ),
+              )
+              .toList();
+        }
+        try {
+          return await refresh();
+        } catch (error) {
+          if (!isTransientOfflineError(error)) rethrow;
+          if (cached != null)
+            return (cached['value'] as List)
+                .map(
+                  (e) => VehicleTypeModel.fromMap(
+                    Map<String, dynamic>.from(e as Map),
+                  ),
+                )
+                .toList();
+          throw StateError('اتصل بالإنترنت لتحميل أنواع المركبات أول مرة');
+        }
+      }
+    }
     try {
       final data = await _client
           .from('vehicle_types')
@@ -67,6 +129,8 @@ class VehicleTypeService {
     required double price,
     String? iconName,
   }) async {
+    InputLimits.checkText(name, InputLimits.name);
+    InputLimits.checkAmount(price);
     try {
       final data = await _client
           .from('vehicle_types')
@@ -89,6 +153,8 @@ class VehicleTypeService {
     String? iconName,
     bool? isActive,
   }) async {
+    InputLimits.checkText(name, InputLimits.name);
+    if (price != null) InputLimits.checkAmount(price);
     try {
       final updates = <String, dynamic>{
         if (name != null) 'name': name,

@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
 
+import '../core/input_limits.dart';
 import '../models/sale_model.dart';
+import '../models/local_sale.dart';
+import '../services/offline_runtime.dart';
+import '../services/offline_sales_repository.dart';
 import '../models/vehicle_type_model.dart';
 import '../services/auth_service.dart';
 import '../services/sales_service.dart';
@@ -8,9 +14,11 @@ import '../services/vehicle_type_service.dart';
 import 'home_screen.dart';
 
 class AddSaleScreen extends StatefulWidget {
-  const AddSaleScreen({super.key, this.sale});
+  const AddSaleScreen({super.key, this.sale, this.localSale})
+    : assert(sale == null || localSale == null);
 
   final SaleModel? sale;
+  final LocalSale? localSale;
 
   @override
   State<AddSaleScreen> createState() => _AddSaleScreenState();
@@ -21,6 +29,8 @@ class _AddSaleScreenState extends State<AddSaleScreen> {
   final SalesService _salesService = SalesService();
   final AuthService _authService = AuthService();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final String _onlineOperationId = const Uuid().v4();
+  final DateTime _onlineCreatedAt = DateTime.now().toUtc();
 
   final TextEditingController _priceController = TextEditingController();
   final TextEditingController _vehicleNameController = TextEditingController();
@@ -33,7 +43,7 @@ class _AddSaleScreenState extends State<AddSaleScreen> {
   bool _isSubmitting = false;
   String? _errorMessage;
 
-  bool get _isEditing => widget.sale != null;
+  bool get _isEditing => widget.sale != null || widget.localSale != null;
 
   @override
   void initState() {
@@ -43,7 +53,7 @@ class _AddSaleScreenState extends State<AddSaleScreen> {
   }
 
   void _fillSaleFields() {
-    final sale = widget.sale;
+    final sale = widget.sale ?? widget.localSale?.displaySale;
     if (sale == null) {
       return;
     }
@@ -63,15 +73,17 @@ class _AddSaleScreenState extends State<AddSaleScreen> {
     super.dispose();
   }
 
-  Future<void> _loadVehicleTypes() async {
+  Future<void> _loadVehicleTypes({bool refreshCache = false}) async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
 
     try {
-      final vehicleTypes = await _vehicleTypeService.getActiveVehicleTypes();
-      final sale = widget.sale;
+      final vehicleTypes = await _vehicleTypeService.getActiveVehicleTypes(
+        refreshCache: refreshCache,
+      );
+      final sale = widget.sale ?? widget.localSale?.displaySale;
 
       if (!mounted) {
         return;
@@ -130,13 +142,49 @@ class _AddSaleScreenState extends State<AddSaleScreen> {
 
     try {
       final sale = widget.sale;
-      if (sale == null) {
+      var locallySaved = false;
+      final profile = OfflineRuntime.enabled
+          ? await OfflineRuntime.session!.cachedProfile(
+              user.id,
+              allowExpired: OfflineRuntime.online.value,
+            )
+          : null;
+      if (OfflineRuntime.enabled &&
+          (widget.localSale != null ||
+              (sale == null && profile?.role == 'employee'))) {
+        final repo = OfflineSalesRepository(
+          Supabase.instance.client,
+          OfflineRuntime.store!,
+          OfflineRuntime.session!,
+        );
+        if (widget.localSale != null) {
+          await repo.edit(
+            widget.localSale!,
+            selectedVehicleType,
+            _parsePrice(_priceController.text),
+            _emptyToNull(_vehicleNameController.text),
+            _emptyToNull(_plateNumberController.text),
+            _emptyToNull(_notesController.text),
+          );
+        } else {
+          await repo.create(
+            type: selectedVehicleType,
+            price: _parsePrice(_priceController.text),
+            vehicleName: _emptyToNull(_vehicleNameController.text),
+            plateNumber: _emptyToNull(_plateNumberController.text),
+            notes: _emptyToNull(_notesController.text),
+          );
+        }
+        locallySaved = true;
+      } else if (sale == null) {
         await _salesService.createSale(
           vehicleTypeId: selectedVehicleType.id,
           vehicleName: _emptyToNull(_vehicleNameController.text),
           plateNumber: _emptyToNull(_plateNumberController.text),
           price: _parsePrice(_priceController.text),
           employeeId: user.id,
+          clientOperationId: _onlineOperationId,
+          createdAt: _onlineCreatedAt,
           notes: _emptyToNull(_notesController.text),
         );
       } else {
@@ -157,7 +205,9 @@ class _AddSaleScreenState extends State<AddSaleScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            _isEditing
+            locallySaved
+                ? 'تم الحفظ على الهاتف وسيتم الإرسال عند الاتصال'
+                : _isEditing
                 ? 'تم تعديل عملية الغسيل بنجاح'
                 : 'تمت إضافة عملية الغسيل بنجاح',
           ),
@@ -187,16 +237,11 @@ class _AddSaleScreenState extends State<AddSaleScreen> {
   }
 
   String? _validatePrice(String? value) {
-    final price = _parsePrice(value ?? '');
-    if (price <= 0) {
-      return 'يرجى إدخال سعر أكبر من صفر';
-    }
-
-    return null;
+    return InputLimits.amountError(value);
   }
 
   double _parsePrice(String value) {
-    return double.tryParse(value.trim().replaceAll(',', '.')) ?? 0;
+    return InputLimits.parseAmount(value) ?? 0;
   }
 
   String _formatPrice(double value) {
@@ -240,7 +285,7 @@ class _AddSaleScreenState extends State<AddSaleScreen> {
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : RefreshIndicator(
-                onRefresh: _loadVehicleTypes,
+                onRefresh: () => _loadVehicleTypes(refreshCache: true),
                 child: SingleChildScrollView(
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
@@ -281,6 +326,8 @@ class _AddSaleScreenState extends State<AddSaleScreen> {
                         const SizedBox(height: 20),
                         TextFormField(
                           controller: _priceController,
+                          maxLength: InputLimits.moneyLength,
+                          inputFormatters: [MoneyInputFormatter()],
                           keyboardType: const TextInputType.numberWithOptions(
                             decimal: true,
                           ),
@@ -295,6 +342,9 @@ class _AddSaleScreenState extends State<AddSaleScreen> {
                         const SizedBox(height: 14),
                         TextFormField(
                           controller: _vehicleNameController,
+                          maxLength: InputLimits.name,
+                          validator: (value) =>
+                              InputLimits.textError(value, InputLimits.name),
                           enabled: !_isSubmitting,
                           decoration: const InputDecoration(
                             labelText: 'اسم المركبة، اختياري',
@@ -305,6 +355,9 @@ class _AddSaleScreenState extends State<AddSaleScreen> {
                         const SizedBox(height: 14),
                         TextFormField(
                           controller: _plateNumberController,
+                          maxLength: InputLimits.plate,
+                          validator: (value) =>
+                              InputLimits.textError(value, InputLimits.plate),
                           enabled: !_isSubmitting,
                           decoration: const InputDecoration(
                             labelText: 'رقم اللوحة، اختياري',
@@ -315,6 +368,9 @@ class _AddSaleScreenState extends State<AddSaleScreen> {
                         const SizedBox(height: 14),
                         TextFormField(
                           controller: _notesController,
+                          maxLength: InputLimits.notes,
+                          validator: (value) =>
+                              InputLimits.textError(value, InputLimits.notes),
                           enabled: !_isSubmitting,
                           maxLines: 3,
                           decoration: const InputDecoration(

@@ -367,6 +367,13 @@ class CarpetOrderTile extends StatelessWidget {
               _AmountChip(label: 'المتبقي', value: order.remainingAmount),
             ],
           ),
+          const SizedBox(height: 10),
+          Text(
+            'عدد القطع: ${order.pieceCount}',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
           if (showEmployeeName && order.employeeName != null) ...[
             const SizedBox(height: 10),
             Text(
@@ -400,16 +407,17 @@ class CarpetOrderTile extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 10),
-          Row(
+          Text(
+            formatDateTime(order.createdAt),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: AppColors.mutedText,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Wrap(
+            spacing: 4,
+            runSpacing: 4,
             children: [
-              Expanded(
-                child: Text(
-                  formatDateTime(order.createdAt),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: AppColors.mutedText,
-                  ),
-                ),
-              ),
               if (onMarkDelivered != null)
                 TextButton.icon(
                   onPressed: onMarkDelivered,

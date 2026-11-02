@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../core/input_limits.dart';
 
 import '../models/carpet_order_model.dart';
 
@@ -13,12 +14,22 @@ class CarpetOrderService {
   Future<CarpetOrderModel> createOrder({
     required String customerName,
     required String phoneNumber,
+    required int pieceCount,
     required double totalPrice,
     required double paidAmount,
     required String employeeId,
     String? notes,
     List<CarpetOrderPhotoUpload> photos = const [],
   }) async {
+    InputLimits.checkText(customerName, InputLimits.name);
+    InputLimits.checkText(phoneNumber, InputLimits.phone);
+    InputLimits.checkText(notes, InputLimits.notes);
+    InputLimits.checkAmount(totalPrice);
+    InputLimits.checkAmount(paidAmount, allowZero: true);
+    if (paidAmount > totalPrice) throw ArgumentError('Payment exceeds total');
+    if (pieceCount < 1 || pieceCount > InputLimits.maxPieces) {
+      throw ArgumentError('Invalid piece count');
+    }
     try {
       final remainingAmount = totalPrice - paidAmount;
       final companyId = await _getCurrentCompanyId();
@@ -28,6 +39,7 @@ class CarpetOrderService {
             'company_id': companyId,
             'customer_name': customerName,
             'phone_number': phoneNumber,
+            'piece_count': pieceCount,
             'total_price': totalPrice,
             'paid_amount': paidAmount,
             'remaining_amount': remainingAmount < 0 ? 0 : remainingAmount,
@@ -54,17 +66,28 @@ class CarpetOrderService {
     required int id,
     required String customerName,
     required String phoneNumber,
+    required int pieceCount,
     required double totalPrice,
     required double paidAmount,
     String? notes,
     bool? isDelivered,
     List<CarpetOrderPhotoUpload> photos = const [],
   }) async {
+    InputLimits.checkText(customerName, InputLimits.name);
+    InputLimits.checkText(phoneNumber, InputLimits.phone);
+    InputLimits.checkText(notes, InputLimits.notes);
+    InputLimits.checkAmount(totalPrice);
+    InputLimits.checkAmount(paidAmount, allowZero: true);
+    if (paidAmount > totalPrice) throw ArgumentError('Payment exceeds total');
+    if (pieceCount < 1 || pieceCount > InputLimits.maxPieces) {
+      throw ArgumentError('Invalid piece count');
+    }
     try {
       final remainingAmount = totalPrice - paidAmount;
       final updateData = <String, dynamic>{
         'customer_name': customerName,
         'phone_number': phoneNumber,
+        'piece_count': pieceCount,
         'total_price': totalPrice,
         'paid_amount': paidAmount,
         'remaining_amount': remainingAmount < 0 ? 0 : remainingAmount,

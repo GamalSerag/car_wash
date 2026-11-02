@@ -15,6 +15,7 @@ build/
 Thumbs.db
 
 # Local logs / crash dumps
+.codex-remote-attachments/
 *.log
 hs_err_pid*.log
 replay_pid*.log

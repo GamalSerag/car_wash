@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
+import '../core/input_limits.dart';
 
 import '../models/profile_model.dart';
 import '../models/signup_request_model.dart';
 import '../services/auth_service.dart';
 import '../services/notification_service.dart';
 import '../services/signup_request_service.dart';
+import '../widgets/whatsapp_contact_button.dart';
+import 'company_created_screen.dart';
+import 'companies_management_screen.dart';
 import 'home_screen.dart';
+import 'signup_request_details_screen.dart';
 
 class SuperAdminHomeScreen extends StatefulWidget {
   const SuperAdminHomeScreen({
@@ -75,14 +80,25 @@ class _SuperAdminHomeScreenState extends State<SuperAdminHomeScreen> {
   }
 
   Future<void> _openCreateCompany({SignupRequestModel? request}) async {
-    final created = await Navigator.of(context).push<bool>(
+    await Navigator.of(context).push<bool>(
       MaterialPageRoute<bool>(
         builder: (_) => CreateCompanyUsersScreen(request: request),
       ),
     );
 
-    if (created == true && mounted) {
+    if (mounted) {
       await _loadRequests();
+    }
+  }
+
+  Future<void> _openRequest(SignupRequestModel request) async {
+    final createCompany = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (_) => SignupRequestDetailsScreen(request: request),
+      ),
+    );
+    if (createCompany == true && mounted) {
+      await _openCreateCompany(request: request);
     }
   }
 
@@ -184,6 +200,23 @@ class _SuperAdminHomeScreenState extends State<SuperAdminHomeScreen> {
                 ),
               ),
               SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                sliver: SliverToBoxAdapter(
+                  child: OutlinedButton.icon(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => CompaniesManagementScreen(
+                          profile: widget.profile,
+                          onCreateCompany: () => _openCreateCompany(),
+                        ),
+                      ),
+                    ),
+                    icon: const Icon(Icons.business_outlined),
+                    label: const Text('إدارة الشركات'),
+                  ),
+                ),
+              ),
+              SliverPadding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                 sliver: SliverToBoxAdapter(
                   child: Text(
@@ -228,6 +261,7 @@ class _SuperAdminHomeScreenState extends State<SuperAdminHomeScreen> {
                       final request = _requests[index];
                       return _SignupRequestTile(
                         request: request,
+                        onOpen: () => _openRequest(request),
                         onCreate: () => _openCreateCompany(request: request),
                         onReject: () => _reject(request),
                       );
@@ -245,11 +279,13 @@ class _SuperAdminHomeScreenState extends State<SuperAdminHomeScreen> {
 class _SignupRequestTile extends StatelessWidget {
   const _SignupRequestTile({
     required this.request,
+    required this.onOpen,
     required this.onCreate,
     required this.onReject,
   });
 
   final SignupRequestModel request;
+  final VoidCallback onOpen;
   final VoidCallback onCreate;
   final VoidCallback onReject;
 
@@ -280,6 +316,11 @@ class _SignupRequestTile extends StatelessWidget {
                 ),
               ),
               _StatusChip(status: request.status),
+              IconButton(
+                tooltip: 'عرض الطلب',
+                onPressed: onOpen,
+                icon: const Icon(Icons.visibility_outlined),
+              ),
             ],
           ),
           const SizedBox(height: 8),
@@ -296,6 +337,11 @@ class _SignupRequestTile extends StatelessWidget {
             style: theme.textTheme.bodySmall?.copyWith(
               color: AppColors.mutedText,
             ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: WhatsappContactButton(request: request),
           ),
           if (isPending) ...[
             const SizedBox(height: 12),
@@ -365,6 +411,7 @@ class _CreateCompanyUsersScreenState extends State<CreateCompanyUsersScreen> {
   late final TextEditingController _companyController;
   late final TextEditingController _adminNameController;
   late final TextEditingController _adminEmailController;
+  late final TextEditingController _whatsappController;
   final TextEditingController _adminPasswordController =
       TextEditingController();
   final TextEditingController _employeeNameController = TextEditingController();
@@ -373,6 +420,7 @@ class _CreateCompanyUsersScreenState extends State<CreateCompanyUsersScreen> {
   final TextEditingController _employeePasswordController =
       TextEditingController();
 
+  CompanyCreatedScreen? _createdScreen;
   bool _isLoading = false;
   String? _errorMessage;
 
@@ -387,6 +435,7 @@ class _CreateCompanyUsersScreenState extends State<CreateCompanyUsersScreen> {
       text: request?.ownerName ?? '',
     );
     _adminEmailController = TextEditingController(text: request?.email ?? '');
+    _whatsappController = TextEditingController(text: request?.phone ?? '');
   }
 
   @override
@@ -394,6 +443,7 @@ class _CreateCompanyUsersScreenState extends State<CreateCompanyUsersScreen> {
     _companyController.dispose();
     _adminNameController.dispose();
     _adminEmailController.dispose();
+    _whatsappController.dispose();
     _adminPasswordController.dispose();
     _employeeNameController.dispose();
     _employeeEmailController.dispose();
@@ -402,9 +452,20 @@ class _CreateCompanyUsersScreenState extends State<CreateCompanyUsersScreen> {
   }
 
   Future<void> _create() async {
+    if (_isLoading || _createdScreen != null) return;
     if (!_formKey.currentState!.validate()) {
       return;
     }
+
+    FocusScope.of(context).unfocus();
+    final companyName = _companyController.text.trim();
+    final phone = _whatsappController.text.trim();
+    final adminName = _adminNameController.text.trim();
+    final adminEmail = _adminEmailController.text.trim();
+    final adminPassword = _adminPasswordController.text;
+    final employeeName = _employeeNameController.text.trim();
+    final employeeEmail = _employeeEmailController.text.trim();
+    final employeePassword = _employeePasswordController.text;
 
     setState(() {
       _isLoading = true;
@@ -414,30 +475,41 @@ class _CreateCompanyUsersScreenState extends State<CreateCompanyUsersScreen> {
     try {
       await _service.createCompanyWithUsers(
         requestId: widget.request?.id,
-        companyName: _companyController.text.trim(),
-        adminFullName: _adminNameController.text.trim(),
-        adminEmail: _adminEmailController.text.trim(),
-        adminPassword: _adminPasswordController.text,
-        employeeFullName: _employeeNameController.text.trim(),
-        employeeEmail: _employeeEmailController.text.trim(),
-        employeePassword: _employeePasswordController.text,
+        companyName: companyName,
+        adminFullName: adminName,
+        adminEmail: adminEmail,
+        adminPassword: adminPassword,
+        employeeFullName: employeeName,
+        employeeEmail: employeeEmail,
+        employeePassword: employeePassword,
       );
 
-      if (!mounted) {
-        return;
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تم إنشاء الشركة والحسابات بنجاح')),
-      );
-      Navigator.of(context).pop(true);
-    } catch (_) {
       if (!mounted) {
         return;
       }
 
       setState(() {
-        _errorMessage = 'تعذر إنشاء الشركة أو الحسابات';
+        _createdScreen = CompanyCreatedScreen(
+          companyName: companyName,
+          phone: phone,
+          adminName: adminName,
+          adminEmail: adminEmail,
+          adminPassword: adminPassword,
+          employeeName: employeeEmail.isNotEmpty ? employeeName : null,
+          employeeEmail: employeeEmail.isNotEmpty ? employeeEmail : null,
+          employeePassword: employeeEmail.isNotEmpty ? employeePassword : null,
+        );
+        _isLoading = false;
+      });
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _errorMessage = error is CompanyCreationException
+            ? error.message
+            : 'تعذر إنشاء الشركة أو الحسابات. تحقق من الاتصال وحاول مرة أخرى';
         _isLoading = false;
       });
     }
@@ -446,6 +518,11 @@ class _CreateCompanyUsersScreenState extends State<CreateCompanyUsersScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
+    final createdScreen = _createdScreen;
+    if (createdScreen != null) {
+      return createdScreen;
+    }
 
     return Scaffold(
       appBar: AppBar(title: const Text('إنشاء شركة وحسابات')),
@@ -468,6 +545,20 @@ class _CreateCompanyUsersScreenState extends State<CreateCompanyUsersScreen> {
                   controller: _companyController,
                   label: 'اسم الشركة',
                   icon: Icons.business_outlined,
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  controller: _whatsappController,
+                  maxLength: InputLimits.phone,
+                  validator: (value) =>
+                      InputLimits.textError(value, InputLimits.phone),
+                  keyboardType: TextInputType.phone,
+                  textDirection: TextDirection.ltr,
+                  decoration: const InputDecoration(
+                    labelText: 'رقم واتساب، اختياري',
+                    prefixIcon: Icon(Icons.phone_outlined),
+                    border: OutlineInputBorder(),
+                  ),
                 ),
                 const SizedBox(height: 18),
                 Text(
@@ -507,6 +598,9 @@ class _CreateCompanyUsersScreenState extends State<CreateCompanyUsersScreen> {
                 const SizedBox(height: 10),
                 TextFormField(
                   controller: _employeeNameController,
+                  maxLength: InputLimits.name,
+                  validator: (value) =>
+                      InputLimits.textError(value, InputLimits.name),
                   decoration: const InputDecoration(
                     labelText: 'اسم الموظف',
                     prefixIcon: Icon(Icons.badge_outlined),
@@ -516,6 +610,9 @@ class _CreateCompanyUsersScreenState extends State<CreateCompanyUsersScreen> {
                 const SizedBox(height: 10),
                 TextFormField(
                   controller: _employeeEmailController,
+                  maxLength: InputLimits.email,
+                  validator: (value) =>
+                      InputLimits.textError(value, InputLimits.email),
                   keyboardType: TextInputType.emailAddress,
                   decoration: const InputDecoration(
                     labelText: 'بريد الموظف',
@@ -526,6 +623,9 @@ class _CreateCompanyUsersScreenState extends State<CreateCompanyUsersScreen> {
                 const SizedBox(height: 10),
                 TextFormField(
                   controller: _employeePasswordController,
+                  maxLength: InputLimits.password,
+                  validator: (value) =>
+                      InputLimits.textError(value, InputLimits.password),
                   obscureText: true,
                   decoration: const InputDecoration(
                     labelText: 'كلمة مرور الموظف',
@@ -584,8 +684,14 @@ class _RequiredField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final limit = obscureText
+        ? InputLimits.password
+        : keyboardType == TextInputType.emailAddress
+        ? InputLimits.email
+        : InputLimits.name;
     return TextFormField(
       controller: controller,
+      maxLength: limit,
       keyboardType: keyboardType,
       obscureText: obscureText,
       decoration: InputDecoration(
@@ -602,7 +708,7 @@ class _RequiredField extends StatelessWidget {
         if (minimum != null && trimmed.length < minimum) {
           return 'يجب ألا تقل القيمة عن $minimum أحرف';
         }
-        return null;
+        return InputLimits.textError(value, limit);
       },
     );
   }

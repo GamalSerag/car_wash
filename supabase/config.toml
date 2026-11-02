@@ -1,8 +1,14 @@
 [functions.notify-sale]
 verify_jwt = false
 
+[functions.dispatch-sale-notifications]
+# This worker validates a server-only x-sale-dispatch-secret header.
+verify_jwt = false
+
 [functions.notify-signup-request]
 verify_jwt = false
 
 [functions.create-company-user]
-verify_jwt = true
+# The function validates the session with auth.getUser() and checks super_admin.
+# Legacy gateway verification does not support the project's ES256 signing key.
+verify_jwt = false

@@ -1,28 +1,41 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../core/piece_count.dart';
+import '../core/input_limits.dart';
 import '../models/carpet_order_model.dart';
 import '../services/auth_service.dart';
 import '../services/carpet_order_service.dart';
 import 'home_screen.dart';
 
 class AddCarpetOrderScreen extends StatefulWidget {
-  const AddCarpetOrderScreen({super.key, this.order});
+  const AddCarpetOrderScreen({
+    super.key,
+    this.order,
+    this.service,
+    this.authService,
+  });
 
   final CarpetOrderModel? order;
+  final CarpetOrderService? service;
+  final AuthService? authService;
 
   @override
   State<AddCarpetOrderScreen> createState() => _AddCarpetOrderScreenState();
 }
 
 class _AddCarpetOrderScreenState extends State<AddCarpetOrderScreen> {
-  final AuthService _authService = AuthService();
-  final CarpetOrderService _carpetOrderService = CarpetOrderService();
+  late final AuthService _authService = widget.authService ?? AuthService();
+  late final CarpetOrderService _carpetOrderService =
+      widget.service ?? CarpetOrderService();
   final ImagePicker _imagePicker = ImagePicker();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
   final TextEditingController _customerNameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _pieceCountController = TextEditingController(
+    text: '1',
+  );
   final TextEditingController _totalPriceController = TextEditingController();
   final TextEditingController _paidAmountController = TextEditingController();
   final TextEditingController _notesController = TextEditingController();
@@ -56,6 +69,7 @@ class _AddCarpetOrderScreenState extends State<AddCarpetOrderScreen> {
 
     _customerNameController.text = order.customerName;
     _phoneController.text = order.phoneNumber;
+    _pieceCountController.text = order.pieceCount.toString();
     _totalPriceController.text = formatPrice(order.totalPrice);
     _paidAmountController.text = formatPrice(order.paidAmount);
     _notesController.text = order.notes ?? '';
@@ -65,6 +79,7 @@ class _AddCarpetOrderScreenState extends State<AddCarpetOrderScreen> {
   void dispose() {
     _customerNameController.dispose();
     _phoneController.dispose();
+    _pieceCountController.dispose();
     _totalPriceController.dispose();
     _paidAmountController.dispose();
     _notesController.dispose();
@@ -147,6 +162,7 @@ class _AddCarpetOrderScreenState extends State<AddCarpetOrderScreen> {
         await _carpetOrderService.createOrder(
           customerName: _customerNameController.text.trim(),
           phoneNumber: _phoneController.text.trim(),
+          pieceCount: parsePieceCount(_pieceCountController.text)!,
           totalPrice: _totalPrice,
           paidAmount: _paidAmount,
           employeeId: user.id,
@@ -158,6 +174,7 @@ class _AddCarpetOrderScreenState extends State<AddCarpetOrderScreen> {
           id: order.id,
           customerName: _customerNameController.text.trim(),
           phoneNumber: _phoneController.text.trim(),
+          pieceCount: parsePieceCount(_pieceCountController.text)!,
           totalPrice: _totalPrice,
           paidAmount: _paidAmount,
           notes: _emptyToNull(_notesController.text),
@@ -194,24 +211,17 @@ class _AddCarpetOrderScreenState extends State<AddCarpetOrderScreen> {
     }
   }
 
-  String? _requiredText(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'هذا الحقل مطلوب';
-    }
-
-    return null;
-  }
-
   String? _validateTotalPrice(String? value) {
-    final amount = _parseAmount(value ?? '');
-    if (amount <= 0) {
-      return 'يرجى إدخال سعر أكبر من صفر';
-    }
-
-    return null;
+    return InputLimits.amountError(value);
   }
 
   String? _validatePaidAmount(String? value) {
+    final error = InputLimits.amountError(
+      value,
+      allowZero: true,
+      allowEmpty: true,
+    );
+    if (error != null) return error;
     final amount = _parseAmount(value ?? '');
     if (amount < 0) {
       return 'يرجى إدخال مبلغ صحيح';
@@ -225,7 +235,7 @@ class _AddCarpetOrderScreenState extends State<AddCarpetOrderScreen> {
   }
 
   double _parseAmount(String value) {
-    return double.tryParse(value.trim().replaceAll(',', '.')) ?? 0;
+    return InputLimits.parseAmount(value) ?? 0;
   }
 
   String? _emptyToNull(String value) {
@@ -252,17 +262,23 @@ class _AddCarpetOrderScreenState extends State<AddCarpetOrderScreen> {
               children: [
                 TextFormField(
                   controller: _customerNameController,
+                  maxLength: InputLimits.name,
                   enabled: !_isSubmitting,
                   decoration: const InputDecoration(
                     labelText: 'اسم العميل',
                     prefixIcon: Icon(Icons.person_outline),
                     border: OutlineInputBorder(),
                   ),
-                  validator: _requiredText,
+                  validator: (value) => InputLimits.textError(
+                    value,
+                    InputLimits.name,
+                    required: true,
+                  ),
                 ),
                 const SizedBox(height: 14),
                 TextFormField(
                   controller: _phoneController,
+                  maxLength: InputLimits.phone,
                   enabled: !_isSubmitting,
                   keyboardType: TextInputType.phone,
                   decoration: const InputDecoration(
@@ -270,11 +286,34 @@ class _AddCarpetOrderScreenState extends State<AddCarpetOrderScreen> {
                     prefixIcon: Icon(Icons.phone_outlined),
                     border: OutlineInputBorder(),
                   ),
-                  validator: _requiredText,
+                  validator: (value) => InputLimits.textError(
+                    value,
+                    InputLimits.phone,
+                    required: true,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                TextFormField(
+                  controller: _pieceCountController,
+                  maxLength: InputLimits.pieceDigits,
+                  inputFormatters: [PieceCountInputFormatter()],
+                  enabled: !_isSubmitting,
+                  keyboardType: TextInputType.number,
+                  textDirection: TextDirection.ltr,
+                  decoration: const InputDecoration(
+                    labelText: 'عدد القطع',
+                    prefixIcon: Icon(Icons.layers_outlined),
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) => parsePieceCount(value ?? '') == null
+                      ? 'أدخل عدد قطع بين 1 و9999'
+                      : null,
                 ),
                 const SizedBox(height: 14),
                 TextFormField(
                   controller: _totalPriceController,
+                  maxLength: InputLimits.moneyLength,
+                  inputFormatters: [MoneyInputFormatter()],
                   enabled: !_isSubmitting,
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
@@ -289,6 +328,8 @@ class _AddCarpetOrderScreenState extends State<AddCarpetOrderScreen> {
                 const SizedBox(height: 14),
                 TextFormField(
                   controller: _paidAmountController,
+                  maxLength: InputLimits.moneyLength,
+                  inputFormatters: [MoneyInputFormatter()],
                   enabled: !_isSubmitting,
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
@@ -334,6 +375,9 @@ class _AddCarpetOrderScreenState extends State<AddCarpetOrderScreen> {
                 const SizedBox(height: 14),
                 TextFormField(
                   controller: _notesController,
+                  maxLength: InputLimits.notes,
+                  validator: (value) =>
+                      InputLimits.textError(value, InputLimits.notes),
                   enabled: !_isSubmitting,
                   maxLines: 3,
                   decoration: const InputDecoration(

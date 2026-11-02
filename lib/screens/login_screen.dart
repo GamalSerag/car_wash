@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../core/input_limits.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../services/auth_service.dart';
@@ -173,6 +174,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 36),
                     TextFormField(
                       controller: _emailController,
+                      maxLength: InputLimits.email,
                       keyboardType: TextInputType.emailAddress,
                       textInputAction: TextInputAction.next,
                       enabled: !_isLoading,
@@ -185,12 +187,13 @@ class _LoginScreenState extends State<LoginScreen> {
                         if (value == null || value.trim().isEmpty) {
                           return 'يرجى إدخال البريد الإلكتروني';
                         }
-                        return null;
+                        return InputLimits.textError(value, InputLimits.email);
                       },
                     ),
                     const SizedBox(height: 16),
                     TextFormField(
                       controller: _passwordController,
+                      maxLength: InputLimits.password,
                       obscureText: _obscurePassword,
                       textInputAction: TextInputAction.done,
                       enabled: !_isLoading,
@@ -221,7 +224,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         if (value == null || value.isEmpty) {
                           return 'يرجى إدخال كلمة المرور';
                         }
-                        return null;
+                        return InputLimits.textError(
+                          value,
+                          InputLimits.password,
+                        );
                       },
                     ),
                     if (_errorMessage != null) ...[

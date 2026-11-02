@@ -1,8 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
+        android:fullBackupContent="@xml/offline_backup_rules"
+        android:dataExtractionRules="@xml/offline_data_extraction_rules"
         android:label="مغسلة"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
